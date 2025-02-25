@@ -1,33 +1,58 @@
-import os
-import sys
-from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
-from sqlalchemy import create_engine, String, ForeignKey
-from eralchemy2 import render_er
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import relationship
+from datetime import datetime
 
-Base = declarative_base()
+db = SQLAlchemy()
 
-class Person(Base):
-    __tablename__ = 'person'
-    # Here we define columns for the table person
-    # Notice that each column is also a normal Python instance attribute.
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(nullable=False)
-    address: Mapped["Address"] = relationship(back_populates="person")
+class Usuario(db.Model):
+    __tablename__ = 'usuario'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(50), nullable=False)
+    apellido = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(100), nullable=False)
+    fecha_suscripcion = db.Column(db.DateTime, default=datetime.utcnow)
 
+    favoritos = relationship('Favorito', back_populates='usuario', cascade='all, delete-orphan')
 
-class Address(Base):
-    __tablename__ = 'address'
-    # Here we define columns for the table address.
-    # Notice that each column is also a normal Python instance attribute.
-    id: Mapped[int] = mapped_column(primary_key=True)
-    street_name: Mapped[str]
-    street_number: Mapped[str]
-    post_code: Mapped[str] = mapped_column(nullable=False)
-    person_id: Mapped[int] = mapped_column(ForeignKey("person.id"))
-    person: Mapped["Person"] = relationship(back_populates="address")
+    def __repr__(self):
+        return f'<Usuario {self.nombre} {self.apellido}>'
 
-    def to_dict(self):
-        return {}
+class Personaje(db.Model):
+    __tablename__ = 'personaje'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), unique=True, nullable=False)
+    descripcion = db.Column(db.Text, nullable=True)
+    imagen = db.Column(db.String(250), nullable=True)
 
-## Draw from SQLAlchemy base
-render_er(Base, 'diagram.png')
+    favoritos = relationship('Favorito', back_populates='personaje')
+
+    def __repr__(self):
+        return f'<Personaje {self.nombre}>'
+
+class Planeta(db.Model):
+    __tablename__ = 'planeta'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), unique=True, nullable=False)
+    descripcion = db.Column(db.Text, nullable=True)
+    imagen = db.Column(db.String(250), nullable=True)
+
+    favoritos = relationship('Favorito', back_populates='planeta')
+
+    def __repr__(self):
+        return f'<Planeta {self.nombre}>'
+
+class Favorito(db.Model):
+    __tablename__ = 'favorito'
+    id = db.Column(db.Integer, primary_key=True)
+    tipo = db.Column(db.Enum('personaje', 'planeta', name='tipo_favorito'), nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    referencia_id = db.Column(db.Integer, nullable=False)
+
+    usuario = relationship('Usuario', back_populates='favoritos')
+    personaje = relationship('Personaje', back_populates='favoritos', foreign_keys=[referencia_id], primaryjoin="and_(Favorito.referencia_id==Personaje.id, Favorito.tipo=='personaje')")
+    planeta = relationship('Planeta', back_populates='favoritos', foreign_keys=[referencia_id], primaryjoin="and_(Favorito.referencia_id==Planeta.id, Favorito.tipo=='planeta')")
+
+    def __repr__(self):
+        return f'<Favorito {self.tipo} - Referencia ID {self.referencia_id}>'
