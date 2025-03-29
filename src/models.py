@@ -1,58 +1,60 @@
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import relationship
-from datetime import datetime
+from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship, declarative_base
+from eralchemy2 import render_er
 
-db = SQLAlchemy()
+Base = declarative_base()
 
-class Usuario(db.Model):
-    __tablename__ = 'usuario'
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(50), nullable=False)
-    apellido = db.Column(db.String(50), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
-    fecha_suscripcion = db.Column(db.DateTime, default=datetime.utcnow)
+class User(Base):
+    __tablename__ = 'user'
 
-    favoritos = relationship('Favorito', back_populates='usuario', cascade='all, delete-orphan')
-
-    def __repr__(self):
-        return f'<Usuario {self.nombre} {self.apellido}>'
-
-class Personaje(db.Model):
-    __tablename__ = 'personaje'
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(100), unique=True, nullable=False)
-    descripcion = db.Column(db.Text, nullable=True)
-    imagen = db.Column(db.String(250), nullable=True)
-
-    favoritos = relationship('Favorito', back_populates='personaje')
-
-    def __repr__(self):
-        return f'<Personaje {self.nombre}>'
-
-class Planeta(db.Model):
-    __tablename__ = 'planeta'
+    id = Column(Integer, primary_key=True)
+    username = Column(String(50), unique=True, nullable=False)
+    email = Column(String(120), unique=True, nullable=False)
+    password = Column(String(100), nullable=False)
     
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(100), unique=True, nullable=False)
-    descripcion = db.Column(db.Text, nullable=True)
-    imagen = db.Column(db.String(250), nullable=True)
+    favorites = relationship('Favorite', backref='user', lazy=True)
 
-    favoritos = relationship('Favorito', back_populates='planeta')
+class Character(Base):
+    __tablename__ = 'character'
 
-    def __repr__(self):
-        return f'<Planeta {self.nombre}>'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    gender = Column(String(50))
+    birth_year = Column(String(50))
+    eye_color = Column(String(50))
+    hair_color = Column(String(50))
 
-class Favorito(db.Model):
-    __tablename__ = 'favorito'
-    id = db.Column(db.Integer, primary_key=True)
-    tipo = db.Column(db.Enum('personaje', 'planeta', name='tipo_favorito'), nullable=False)
-    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
-    referencia_id = db.Column(db.Integer, nullable=False)
+    favorites = relationship('FavoriteCharacter', backref='character', lazy=True)
 
-    usuario = relationship('Usuario', back_populates='favoritos')
-    personaje = relationship('Personaje', back_populates='favoritos', foreign_keys=[referencia_id], primaryjoin="and_(Favorito.referencia_id==Personaje.id, Favorito.tipo=='personaje')")
-    planeta = relationship('Planeta', back_populates='favoritos', foreign_keys=[referencia_id], primaryjoin="and_(Favorito.referencia_id==Planeta.id, Favorito.tipo=='planeta')")
+class Planet(Base):
+    __tablename__ = 'planet'
 
-    def __repr__(self):
-        return f'<Favorito {self.tipo} - Referencia ID {self.referencia_id}>'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    climate = Column(String(100))
+    terrain = Column(String(100))
+    population = Column(String(100))
+
+    favorites = relationship('FavoritePlanet', backref='planet', lazy=True)
+
+class FavoriteCharacter(Base):
+    __tablename__ = 'favorite_character'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('user.id'))
+    character_id = Column(Integer, ForeignKey('character.id'))
+
+class FavoritePlanet(Base):
+    __tablename__ = 'favorite_planet'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('user.id'))
+    planet_id = Column(Integer, ForeignKey('planet.id'))
+
+# Generar el diagrama
+try:
+    render_er(Base, 'diagram.png')
+    print("¡Éxito! Revisa el archivo diagram.png")
+except Exception as e:
+    print("Error al generar el diagrama:")
+    raise e
